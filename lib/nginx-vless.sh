@@ -2,6 +2,24 @@
 # shellcheck shell=bash
 # Nginx site and stream configuration.
 
+reload_or_start_nginx() {
+  log_debug "[nginx-vless.reload_or_start_nginx] start"
+  if systemctl is-active --quiet nginx 2>/dev/null; then
+    run_cmd systemctl reload nginx || run_cmd systemctl restart nginx
+  else
+    log_warn "nginx не запущен — выполняем start"
+    run_cmd systemctl start nginx || run_cmd systemctl restart nginx
+  fi
+}
+
+disable_default_nginx_site() {
+  log_debug "[nginx-vless.disable_default_nginx_site] start"
+  if [[ -L /etc/nginx/sites-enabled/default ]] || [[ -f /etc/nginx/sites-enabled/default ]]; then
+    run_cmd rm -f /etc/nginx/sites-enabled/default
+    log_info "Отключён sites-enabled/default (конфликт server_name на :80)"
+  fi
+}
+
 setup_nginx() {
   log_debug "[nginx-vless.setup_nginx] ws=${ENABLE_VLESS_WS} reality=${ENABLE_REALITY}"
 
@@ -12,6 +30,7 @@ setup_nginx() {
     return 0
   fi
 
+  disable_default_nginx_site
   setup_decoy_site
   render_nginx_site
   if [[ "${ENABLE_REALITY}" == "1" ]]; then
@@ -21,7 +40,7 @@ setup_nginx() {
   if [[ "${DRY_RUN}" != "1" ]]; then
     run_cmd nginx -t
     run_cmd systemctl enable nginx
-    run_cmd systemctl reload nginx || run_cmd systemctl restart nginx
+    reload_or_start_nginx
     log_info "nginx настроен"
   fi
 }
@@ -95,16 +114,66 @@ EOF
   log_info "nginx site: ${site_conf}"
 }
 
+cleanup_legacy_nginx_stream_refs() {
+  local nginx_conf="/etc/nginx/nginx.conf"
+  log_debug "[nginx-vless.cleanup_legacy_nginx_stream_refs] start"
+
+  if [[ ! -f "${nginx_conf}" ]]; then
+    return 0
+  fi
+
+  if grep -q 'conf\.d/xray-cli-stream\.conf' "${nginx_conf}" 2>/dev/null; then
+    run_cmd sed -i '\|conf\.d/xray-cli-stream\.conf|d' "${nginx_conf}"
+    log_info "Удалена устаревшая ссылка conf.d/xray-cli-stream.conf из nginx.conf"
+  fi
+}
+
+ensure_nginx_stream_block() {
+  log_debug "[nginx-vless.ensure_nginx_stream_block] start"
+  local nginx_conf="/etc/nginx/nginx.conf"
+
+  cleanup_legacy_nginx_stream_refs
+
+  if grep -q 'streams-enabled' "${nginx_conf}" 2>/dev/null; then
+    log_debug "[nginx-vless.ensure_nginx_stream_block] streams-enabled include present"
+    return 0
+  fi
+
+  if grep -q '^stream {' "${nginx_conf}" 2>/dev/null; then
+    run_cmd sed -i '/^stream {/a \    include /etc/nginx/streams-enabled/*.conf;' "${nginx_conf}"
+    log_info "Добавлен include streams-enabled в существующий блок stream"
+    return 0
+  fi
+
+  cat >> "${nginx_conf}" <<'EOF'
+
+# xray-cli: TCP/stream (must be outside http {})
+stream {
+    include /etc/nginx/streams-enabled/*.conf;
+}
+EOF
+  log_info "Добавлен блок stream в nginx.conf"
+}
+
 render_nginx_stream() {
-  local stream_conf="/etc/nginx/conf.d/xray-cli-stream.conf"
+  local stream_conf="/etc/nginx/streams-available/xray-cli-stream.conf"
+  local stream_enabled="/etc/nginx/streams-enabled/xray-cli-stream.conf"
   log_debug "[nginx-vless.render_nginx_stream] file=${stream_conf}"
+
+  # Legacy path was under conf.d (included from http {}) — remove to avoid parse errors
+  run_cmd rm -f /etc/nginx/conf.d/xray-cli-stream.conf
+
+  run_cmd mkdir -p /etc/nginx/streams-available /etc/nginx/streams-enabled
 
   cat > "${stream_conf}" <<EOF
 # xray-cli stream routing for combo mode
+map_hash_bucket_size 128;
+map_hash_max_size 4096;
+
 map \$ssl_preread_server_name \$xray_cli_backend {
-    ${DOMAIN}     127.0.0.1:${NGINX_SSL_INTERNAL_PORT};
+    ${DOMAIN}      127.0.0.1:${NGINX_SSL_INTERNAL_PORT};
     ${REALITY_SNI} 127.0.0.1:${REALITY_INTERNAL_PORT};
-    default       127.0.0.1:${REALITY_INTERNAL_PORT};
+    default        127.0.0.1:${REALITY_INTERNAL_PORT};
 }
 
 server {
@@ -115,23 +184,8 @@ server {
 }
 EOF
 
-  if [[ -d /etc/nginx/streams-enabled ]]; then
-    run_cmd ln -sf "${stream_conf}" /etc/nginx/streams-enabled/xray-cli-stream.conf
-  elif ! grep -q 'xray-cli-stream.conf' /etc/nginx/nginx.conf 2>/dev/null; then
-    if grep -q '^stream {' /etc/nginx/nginx.conf 2>/dev/null; then
-      if ! grep -q 'xray-cli-stream' /etc/nginx/nginx.conf; then
-        run_cmd sed -i '/^stream {/a \    include /etc/nginx/conf.d/xray-cli-stream.conf;' /etc/nginx/nginx.conf
-      fi
-    else
-      cat >> /etc/nginx/nginx.conf <<'EOF'
-
-stream {
-    include /etc/nginx/conf.d/xray-cli-stream.conf;
-}
-EOF
-    fi
-    log_debug "[nginx-vless] registered stream config in nginx.conf"
-  fi
+  run_cmd ln -sf "${stream_conf}" "${stream_enabled}"
+  ensure_nginx_stream_block
 
   log_info "nginx stream: ${stream_conf}"
 }

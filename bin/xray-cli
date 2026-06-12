@@ -56,6 +56,8 @@ cmd_uninstall() {
     rm -f "/etc/nginx/sites-enabled/xray-cli-${DOMAIN}.conf" 2>/dev/null || true
   fi
   rm -f /etc/nginx/conf.d/xray-cli-stream.conf 2>/dev/null || true
+  rm -f /etc/nginx/streams-enabled/xray-cli-stream.conf 2>/dev/null || true
+  rm -f /etc/nginx/streams-available/xray-cli-stream.conf 2>/dev/null || true
   systemctl reload nginx 2>/dev/null || true
 
   rm -rf "${XRAY_CLI_STATE_DIR}"
