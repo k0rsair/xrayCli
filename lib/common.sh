@@ -148,9 +148,26 @@ ensure_state_dir() {
 load_state() {
   if [[ -f "${XRAY_CLI_STATE_FILE}" ]]; then
     log_debug "[common.load_state] loading ${XRAY_CLI_STATE_FILE}"
-    # shellcheck disable=SC1090
-    source "${XRAY_CLI_STATE_FILE}"
+    source_state_file "${XRAY_CLI_STATE_FILE}"
   fi
+}
+
+source_state_file() {
+  local state_file="$1"
+  local line key
+
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \#* ]] && continue
+    [[ "${line}" != *=* ]] && continue
+
+    key="${line%%=*}"
+    if declare -p "${key}" >/dev/null 2>&1 && declare -p "${key}" 2>/dev/null | grep -q 'declare \-[^ ]*r'; then
+      log_debug "[common.source_state_file] skip readonly key=${key}"
+      continue
+    fi
+
+    builtin eval -- "${line}"
+  done < "${state_file}"
 }
 
 save_state_var() {

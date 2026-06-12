@@ -14,8 +14,7 @@ cmd_status() {
   echo "=== xray-cli status ==="
   if [[ -f "${XRAY_CLI_STATE_FILE}" ]]; then
     echo "State: ${XRAY_CLI_STATE_FILE}"
-    # shellcheck disable=SC1090
-    source "${XRAY_CLI_STATE_FILE}"
+    source_state_file "${XRAY_CLI_STATE_FILE}"
     echo "  VLESS-WS:  ${ENABLE_VLESS_WS:-?}"
     echo "  Reality:   ${ENABLE_REALITY:-?}"
     echo "  Domain:    ${DOMAIN:-n/a}"

@@ -70,8 +70,6 @@ persist_secrets() {
     state_assignment "DOMAIN" "${DOMAIN:-}"
     state_assignment "CLIENT_UUID" "${CLIENT_UUID:-}"
     state_assignment "CLIENT_UUID_SOURCE" "${CLIENT_UUID_SOURCE:-}"
-    state_assignment "WS_PORT" "${WS_PORT}"
-    state_assignment "WS_PATH" "${WS_PATH}"
     state_assignment "REALITY_ADDRESS" "${REALITY_ADDRESS:-}"
     state_assignment "REALITY_ADDRESS_SOURCE" "${REALITY_ADDRESS_SOURCE:-}"
     state_assignment "REALITY_DEST" "${REALITY_DEST:-}"
@@ -102,8 +100,6 @@ persist_secrets() {
     state_assignment "REALITY_REFERENCE_SHORT_ID_SOURCE" "${REALITY_REFERENCE_SHORT_ID_SOURCE:-}"
     state_assignment "REALITY_REMARKS" "${REALITY_REMARKS:-}"
     state_assignment "REALITY_REMARKS_SOURCE" "${REALITY_REMARKS_SOURCE:-}"
-    state_assignment "REALITY_INTERNAL_PORT" "${REALITY_INTERNAL_PORT}"
-    state_assignment "NGINX_SSL_INTERNAL_PORT" "${NGINX_SSL_INTERNAL_PORT}"
     state_assignment "CERTBOT_EMAIL" "${CERTBOT_EMAIL:-}"
   } > "${XRAY_CLI_STATE_FILE}"
 
