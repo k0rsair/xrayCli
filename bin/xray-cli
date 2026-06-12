@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# xray-cli — post-install management utility
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../lib/common.sh"
+
+cmd_status() {
+  echo "=== xray-cli status ==="
+  if [[ -f "${XRAY_CLI_STATE_FILE}" ]]; then
+    echo "State: ${XRAY_CLI_STATE_FILE}"
+    # shellcheck disable=SC1090
+    source "${XRAY_CLI_STATE_FILE}"
+    echo "  VLESS-WS:  ${ENABLE_VLESS_WS:-?}"
+    echo "  Reality:   ${ENABLE_REALITY:-?}"
+    echo "  Domain:    ${DOMAIN:-n/a}"
+  else
+    echo "State file not found"
+  fi
+  echo ""
+  for unit in xray nginx; do
+    if systemctl list-unit-files "${unit}.service" &>/dev/null; then
+      printf "  %-8s %s\n" "${unit}:" "$(systemctl is-active "${unit}" 2>/dev/null || echo unknown)"
+    fi
+  done
+}
+
+cmd_links() {
+  if [[ -f "${XRAY_CLI_LINKS_FILE}" ]]; then
+    cat "${XRAY_CLI_LINKS_FILE}"
+  else
+    die "Файл ссылок не найден: ${XRAY_CLI_LINKS_FILE}"
+  fi
+}
+
+cmd_test_config() {
+  require_cmd xray
+  if [[ ! -f "${XRAY_CONFIG_PATH}" ]]; then
+    die "Конфиг не найден: ${XRAY_CONFIG_PATH}"
+  fi
+  xray run -test -config "${XRAY_CONFIG_PATH}"
+  log_info "config OK"
+}
+
+cmd_uninstall() {
+  require_root
+  echo "Это удалит xray-cli конфиги и остановит сервисы."
+  read -r -p "Продолжить? [y/N]: " answer
+  [[ "${answer}" =~ ^[Yy] ]] || exit 0
+
+  systemctl stop xray 2>/dev/null || true
+  systemctl disable xray 2>/dev/null || true
+
+  if [[ -f /etc/nginx/sites-enabled/xray-cli-"${DOMAIN:-}".conf ]]; then
+    rm -f "/etc/nginx/sites-enabled/xray-cli-${DOMAIN}.conf" 2>/dev/null || true
+  fi
+  rm -f /etc/nginx/conf.d/xray-cli-stream.conf 2>/dev/null || true
+  systemctl reload nginx 2>/dev/null || true
+
+  rm -rf "${XRAY_CLI_STATE_DIR}"
+  echo "xray-cli state удалён. xray-core не удалён (используйте официальный uninstall)."
+}
+
+usage_cli() {
+  cat <<'EOF'
+xray-cli — управление после установки
+
+Команды:
+  status       Статус сервисов и режимов
+  links        Показать ссылки подключения
+  test-config  Проверить config.json
+  uninstall    Удалить конфиги xray-cli
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  case "${cmd}" in
+    status)       cmd_status ;;
+    links)        cmd_links ;;
+    test-config)  cmd_test_config ;;
+    uninstall)    cmd_uninstall ;;
+    -h|--help|"") usage_cli ;;
+    *) die "Неизвестная команда: ${cmd}" ;;
+  esac
+}
+
+main "$@"
