@@ -24,8 +24,13 @@ install_xray_core() {
   local tmp
   tmp="$(mktemp)"
   curl -fsSL "${XRAY_INSTALL_URL}" -o "${tmp}"
-  log_debug "[install-xray] running official install script"
-  bash "${tmp}" @ install
+  chmod +x "${tmp}"
+  log_debug "[install-xray] running official install script (install)"
+  # @ нужен только для bash -c "$(curl ...)" @ install; для файла — просто install
+  if ! bash "${tmp}" install; then
+    log_debug "[install-xray] retry via bash -c pipe"
+    bash -c "$(cat "${tmp}")" @ install
+  fi
   rm -f "${tmp}"
 
   require_cmd xray

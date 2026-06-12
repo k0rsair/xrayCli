@@ -2,9 +2,13 @@
 # xray-cli — post-install management utility
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f /etc/xray-cli/install-root ]]; then
+  XRAY_CLI_ROOT="$(< /etc/xray-cli/install-root)"
+else
+  XRAY_CLI_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+fi
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../lib/common.sh"
+source "${XRAY_CLI_ROOT}/lib/common.sh"
 
 cmd_status() {
   echo "=== xray-cli status ==="

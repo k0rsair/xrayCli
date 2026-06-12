@@ -2,6 +2,17 @@
 # shellcheck shell=bash
 # systemd services and firewall hints.
 
+install_cli_tool() {
+  local target="/usr/local/bin/xray-cli"
+  log_debug "[service.install_cli_tool] root=${PROJECT_ROOT} target=${target}"
+  run_cmd chmod +x "${PROJECT_ROOT}/bin/xray-cli"
+  ensure_state_dir
+  echo "${PROJECT_ROOT}" > "${XRAY_CLI_STATE_DIR}/install-root"
+  run_cmd chmod 644 "${XRAY_CLI_STATE_DIR}/install-root"
+  run_cmd ln -sf "${PROJECT_ROOT}/bin/xray-cli" "${target}"
+  log_info "CLI: ${target} -> ${PROJECT_ROOT}/bin/xray-cli"
+}
+
 start_services() {
   log_debug "[service.start_services] start"
 
@@ -26,6 +37,7 @@ start_services() {
   run_cmd systemctl restart xray
   check_unit xray
 
+  install_cli_tool
   suggest_firewall
 }
 
