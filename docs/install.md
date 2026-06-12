@@ -26,6 +26,7 @@ flowchart LR
 - xray слушает `0.0.0.0:443` напрямую
 - nginx не используется
 - Маскировка под выбранный SNI (например `www.microsoft.com`)
+- При импорте эталонного client JSON адрес/hostname и fingerprint можно подтянуть автоматически
 
 ### Комбо (`combo`)
 
@@ -59,8 +60,40 @@ flowchart TB
 | `--domain` | Домен для WS |
 | `--email` | Email для certbot |
 | `--reality-dest` | `host:port` для Reality dest |
+| `--reality-address` | Явный hostname/IP для клиентского Reality профиля |
 | `--reality-sni` | SNI для клиента |
-| `--fingerprint` | `chrome` или `random` |
+| `--fingerprint` | Любой fingerprint клиента (`chrome`, `random`, `qq`, ...) |
+| `--client-uuid` | Явный UUID клиента |
+| `--reality-short-id` | Явный Reality shortId |
+| `--reality-reference-json` | Путь к рабочему клиентскому Reality JSON для импорта эталонных параметров |
+
+## Импорт эталонного Reality client JSON
+
+Если у вас уже есть рабочий клиентский конфиг, например экспорт из Nekoray / v2rayN / Hiddify, его можно использовать как эталон:
+
+```bash
+sudo ./install.sh --mode vless-reality --yes --non-interactive \
+  --reality-reference-json /path/to/test.json
+```
+
+Что импортируется:
+
+- `address`
+- `port`
+- `flow`
+- `serverName`
+- `fingerprint`
+- `remarks`
+
+Что не восстанавливается один в один:
+
+- `privateKey` сервера в клиентском JSON отсутствует
+- `UUID` и `shortId` для нового сервера продолжают генерироваться локально, если вы не задали их явно CLI-флагами
+- новый сервер всегда получает свою локально сгенерированную пару `x25519`
+- новый `publicKey` публикуется в `vless://` ссылке и `/etc/xray-cli/client-reality.json`
+- импортированный `publicKey` хранится только как reference для сверки и диагностики
+
+Если в эталоне нет `dest`, установщик выводит его как `${REALITY_SNI}:443`.
 
 ## Переменные окружения
 
@@ -173,6 +206,15 @@ include /etc/nginx/streams-enabled/*.conf;
 1. Скопируйте ссылку из `/etc/xray-cli/client-links.txt`
 2. Импортируйте в v2rayN, Nekoray, Hiddify или аналог
 3. Для Reality используйте ссылку `[vless-reality]`
+4. Если нужен JSON-формат, используйте `/etc/xray-cli/client-reality.json`
+
+### Эталонный JSON импортировался, но сервер получился не идентичным
+
+Это ожидаемо, если у вас был только клиентский конфиг.
+
+- Без исходного серверного `privateKey` нельзя собрать точную копию удалённого Reality сервера.
+- `xrayCli` строит паритетный сервер: сохраняет наблюдаемые клиентские параметры и выпускает новый локальный keypair.
+- Проверьте `xray-cli status`: там видно, какие поля импортированы, а какие сгенерированы заново.
 
 ## Добавление второго клиента вручную
 

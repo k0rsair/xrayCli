@@ -19,6 +19,16 @@ cmd_status() {
     echo "  VLESS-WS:  ${ENABLE_VLESS_WS:-?}"
     echo "  Reality:   ${ENABLE_REALITY:-?}"
     echo "  Domain:    ${DOMAIN:-n/a}"
+    if [[ "${ENABLE_REALITY:-0}" == "1" ]]; then
+      echo "  Reality address: ${REALITY_ADDRESS:-${REALITY_REFERENCE_ADDRESS:-auto}}"
+      echo "  Reality SNI:     ${REALITY_SNI:-n/a} (${REALITY_SNI_SOURCE:-unknown})"
+      echo "  Reality flow:    ${REALITY_FLOW:-xtls-rprx-vision}"
+      echo "  Fingerprint:     ${REALITY_FINGERPRINT:-n/a} (${REALITY_FINGERPRINT_SOURCE:-unknown})"
+      echo "  shortId:         ${REALITY_SHORT_ID:-n/a} (${REALITY_SHORT_ID_SOURCE:-unknown})"
+      echo "  Public key:      $(mask_secret "${REALITY_PUBLIC_KEY:-}") (${REALITY_PUBLIC_KEY_SOURCE:-unknown})"
+      echo "  Ref public key:  $(mask_secret "${REALITY_REFERENCE_PUBLIC_KEY:-}") (${REALITY_REFERENCE_PUBLIC_KEY_SOURCE:-unknown})"
+      echo "  Reality JSON:    ${XRAY_CLI_REALITY_JSON_FILE}"
+    fi
   else
     echo "State file not found"
   fi

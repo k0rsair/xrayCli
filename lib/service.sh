@@ -76,6 +76,14 @@ print_summary() {
   echo "  VLESS-WS:  $([[ "${ENABLE_VLESS_WS}" == "1" ]] && echo да || echo нет)"
   echo "  Reality:   $([[ "${ENABLE_REALITY}" == "1" ]] && echo да || echo нет)"
   echo "  Ссылки:    ${XRAY_CLI_LINKS_FILE}"
+  if [[ "${ENABLE_REALITY}" == "1" ]]; then
+    echo "  Reality cfg: ${XRAY_CLI_REALITY_JSON_FILE}"
+    echo "  Reality addr: ${REALITY_ADDRESS:-${REALITY_REFERENCE_ADDRESS:-auto}}"
+    echo "  Reality SNI:  ${REALITY_SNI:-n/a}"
+    echo "  Fingerprint:  ${REALITY_FINGERPRINT:-n/a}"
+    echo "  shortId:      $(mask_secret "${REALITY_SHORT_ID:-}")"
+    echo "  Key mode:     ${REALITY_PUBLIC_KEY_SOURCE:-generated}"
+  fi
   echo "  Состояние: ${XRAY_CLI_STATE_FILE}"
   echo ""
   echo "  Команды: xray-cli status | links | test-config | uninstall"

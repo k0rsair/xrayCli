@@ -12,6 +12,7 @@ setup() {
   DOMAIN="vpn.example.com"
   WS_PATH="/xray-ws"
   REALITY_SNI="www.microsoft.com"
+  REALITY_FLOW="xtls-rprx-vision"
   REALITY_FINGERPRINT="chrome"
   REALITY_PUBLIC_KEY="pubkey123"
   REALITY_SHORT_ID="aabbccdd"
@@ -31,4 +32,24 @@ setup() {
   [[ "$output" == *"security=reality"* ]]
   [[ "$output" == *"pbk=pubkey123"* ]]
   [[ "$output" == *"sni=www.microsoft.com"* ]]
+}
+
+@test "build_reality_client_json preserves hostname and custom fingerprint" {
+  REALITY_FINGERPRINT="qq"
+  REALITY_REMARKS="Germany"
+
+  run build_reality_client_json "test.grey-lance.test-cdn-kkk.com" "443"
+  [[ "$status" -eq 0 ]]
+  [[ "$output" == *"test.grey-lance.test-cdn-kkk.com"* ]]
+  [[ "$output" == *'"fingerprint": "qq"'* ]]
+  [[ "$output" == *'"publicKey": "pubkey123"'* ]]
+}
+
+@test "resolve_reality_server_address prefers imported hostname" {
+  REALITY_ADDRESS=""
+  REALITY_REFERENCE_ADDRESS="test.grey-lance.test-cdn-kkk.com"
+
+  run resolve_reality_server_address
+  [[ "$status" -eq 0 ]]
+  [[ "$output" == "test.grey-lance.test-cdn-kkk.com" ]]
 }

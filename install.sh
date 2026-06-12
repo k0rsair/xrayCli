@@ -8,6 +8,8 @@ source "${SCRIPT_DIR}/lib/common.sh"
 
 MODE=""
 SHOW_HELP=0
+REALITY_REFERENCE_JSON="${REALITY_REFERENCE_JSON:-}"
+REALITY_ADDRESS="${REALITY_ADDRESS:-}"
 
 usage() {
   cat <<'EOF'
@@ -26,8 +28,12 @@ xray-cli installer — развёртывание Xray VPN на Debian 13
   --domain DOMAIN     Домен для VLESS-WS
   --email EMAIL       Email для Let's Encrypt
   --reality-dest HOST:PORT   Reality dest (non-interactive)
+  --reality-address HOST     Адрес/hostname для клиентского Reality профиля
   --reality-sni SNI          Reality SNI
-  --fingerprint FP           chrome | random
+  --fingerprint FP           fingerprint клиента (например chrome, random, qq)
+  --client-uuid UUID         UUID клиента Reality/VLESS
+  --reality-short-id SID     shortId клиента Reality
+  --reality-reference-json PATH  Импортировать рабочий Reality client JSON как эталон
 
 Примеры:
   sudo ./install.sh
@@ -47,15 +53,20 @@ parse_args() {
       --mode) MODE="$2"; shift 2 ;;
       --domain) DOMAIN="$2"; shift 2 ;;
       --email) CERTBOT_EMAIL="$2"; shift 2 ;;
-      --reality-dest) REALITY_DEST="$2"; shift 2 ;;
-      --reality-sni) REALITY_SNI="$2"; shift 2 ;;
-      --fingerprint) REALITY_FINGERPRINT="$2"; shift 2 ;;
+      --reality-dest) REALITY_DEST="$2"; REALITY_DEST_SOURCE="cli"; shift 2 ;;
+      --reality-address) REALITY_ADDRESS="$2"; REALITY_ADDRESS_SOURCE="cli"; shift 2 ;;
+      --reality-sni) REALITY_SNI="$2"; REALITY_SNI_SOURCE="cli"; shift 2 ;;
+      --fingerprint) REALITY_FINGERPRINT="$2"; REALITY_FINGERPRINT_SOURCE="cli"; shift 2 ;;
+      --client-uuid) CLIENT_UUID="$2"; CLIENT_UUID_SOURCE="cli"; shift 2 ;;
+      --reality-short-id) REALITY_SHORT_ID="$2"; REALITY_SHORT_ID_SOURCE="cli"; shift 2 ;;
+      --reality-reference-json) REALITY_REFERENCE_JSON="$2"; REALITY_REFERENCE_JSON_SOURCE="cli"; shift 2 ;;
       *) die "Неизвестный аргумент: $1 (используйте --help)" ;;
     esac
   done
 }
 
 main() {
+  load_state
   parse_args "$@"
   [[ "${SHOW_HELP}" == "1" ]] && { usage; exit 0; }
 
@@ -66,6 +77,7 @@ main() {
   require_root
   check_debian
 
+  source_lib reality-reference.sh
   source_lib prompts.sh
   source_lib install-deps.sh
   source_lib install-xray.sh
@@ -79,7 +91,9 @@ main() {
   source_lib service.sh
   source_lib preflight.sh
 
+  load_reality_reference_if_configured
   run_prompts "${MODE}"
+  finalize_reality_runtime
 
   log_info "Шаг 1/7: установка зависимостей"
   install_system_deps

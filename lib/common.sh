@@ -8,6 +8,7 @@ readonly XRAY_CLI_VERSION="0.1.0"
 readonly XRAY_CLI_STATE_DIR="${XRAY_CLI_STATE_DIR:-/etc/xray-cli}"
 readonly XRAY_CLI_STATE_FILE="${XRAY_CLI_STATE_DIR}/state.env"
 readonly XRAY_CLI_LINKS_FILE="${XRAY_CLI_STATE_DIR}/client-links.txt"
+readonly XRAY_CLI_REALITY_JSON_FILE="${XRAY_CLI_STATE_DIR}/client-reality.json"
 readonly XRAY_CONFIG_PATH="${XRAY_CONFIG_PATH:-/usr/local/etc/xray/config.json}"
 readonly XRAY_BIN="${XRAY_BIN:-/usr/local/bin/xray}"
 WS_PORT="${WS_PORT:-10000}"
@@ -166,6 +167,12 @@ save_state_var() {
     echo "${key}=${value}" > "${XRAY_CLI_STATE_FILE}"
   fi
   run_cmd chmod 600 "${XRAY_CLI_STATE_FILE}"
+}
+
+state_assignment() {
+  local key="$1"
+  local value="${2-}"
+  printf '%s=%q\n' "${key}" "${value}"
 }
 
 is_valid_fqdn() {

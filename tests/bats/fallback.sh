@@ -8,9 +8,11 @@ export DOMAIN="vpn.example.com"
 export ENABLE_VLESS_WS=1
 export ENABLE_REALITY=1
 export REALITY_SNI="www.microsoft.com"
+export REALITY_FLOW="xtls-rprx-vision"
 export REALITY_FINGERPRINT="chrome"
 export REALITY_PUBLIC_KEY="test-public-key"
 export REALITY_SHORT_ID="aabbccdd"
+export REALITY_REFERENCE_ADDRESS="test.grey-lance.test-cdn-kkk.com"
 # shellcheck disable=SC1091
 source "${ROOT}/lib/common.sh"
 # shellcheck disable=SC1091
@@ -29,6 +31,13 @@ assert_contains "${link}" "type=ws"
 link="$(build_vless_reality_link "203.0.113.1")"
 assert_contains "${link}" "security=reality"
 assert_contains "${link}" "pbk=test-public-key"
+
+address="$(resolve_reality_server_address)"
+[[ "${address}" == "test.grey-lance.test-cdn-kkk.com" ]] || { echo "FAIL: reality address import"; exit 1; }
+
+json="$(build_reality_client_json "test.grey-lance.test-cdn-kkk.com" "443")"
+assert_contains "${json}" "test.grey-lance.test-cdn-kkk.com"
+assert_contains "${json}" "\"publicKey\": \"test-public-key\""
 
 is_valid_fqdn "vpn.example.com" || { echo "FAIL: valid fqdn"; exit 1; }
 is_valid_fqdn "bad" && { echo "FAIL: invalid fqdn accepted"; exit 1; }

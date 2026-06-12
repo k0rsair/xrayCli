@@ -20,6 +20,7 @@ build_reality_inbound() {
     --arg listen "${listen_addr}" \
     --arg dest "${REALITY_DEST}" \
     --arg sni "${REALITY_SNI}" \
+    --arg flow "${REALITY_FLOW:-xtls-rprx-vision}" \
     --arg privateKey "${REALITY_PRIVATE_KEY}" \
     --arg shortId "${REALITY_SHORT_ID}" \
     '{
@@ -31,7 +32,7 @@ build_reality_inbound() {
         clients: [{
           id: $uuid,
           email: "vless-reality@xray-cli",
-          flow: "xtls-rprx-vision"
+          flow: $flow
         }],
         decryption: "none"
       },

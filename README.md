@@ -2,7 +2,7 @@
 
 CLI-установщик для быстрого развёртывания **Xray VPN** на **Debian 13** (Trixie / bookworm).
 
-Автоматически устанавливает `xray-core` и `nginx`, генерирует ключи и UUID, создаёт конфигурацию и сохраняет готовые ссылки `vless://` для клиентов.
+Автоматически устанавливает `xray-core` и `nginx`, генерирует ключи и UUID, создаёт конфигурацию и сохраняет готовые ссылки `vless://` и Reality client JSON для клиентов.
 
 ## Режимы
 
@@ -40,6 +40,11 @@ sudo ./install.sh --non-interactive --yes \
 # Только Reality
 sudo ./install.sh --non-interactive --yes --mode vless-reality
 
+# Reality по эталонному клиентскому JSON
+sudo ./install.sh --non-interactive --yes \
+  --mode vless-reality \
+  --reality-reference-json /path/to/test.json
+
 # Комбо
 sudo ./install.sh --non-interactive --yes \
   --mode combo --domain vpn.example.com --email admin@vpn.example.com
@@ -56,8 +61,28 @@ sudo ./install.sh --dry-run --mode combo --domain vpn.example.com --yes
 | Файл | Содержимое |
 |------|------------|
 | `/etc/xray-cli/client-links.txt` | Ссылки `vless://` для импорта в клиент |
+| `/etc/xray-cli/client-reality.json` | Готовый Reality client JSON с новым `publicKey` сервера |
 | `/etc/xray-cli/state.env` | UUID, ключи, параметры (chmod 600) |
 | `/usr/local/etc/xray/config.json` | Конфигурация xray |
+
+## Reverse Engineering from Client JSON
+
+Если у вас уже есть стабильный клиентский Reality-конфиг, его можно использовать как эталон:
+
+```bash
+sudo ./install.sh --mode vless-reality --yes --non-interactive \
+  --reality-reference-json /path/to/test.json
+```
+
+`xrayCli` импортирует из него наблюдаемые параметры, например `address`, `serverName`, `fingerprint`, `flow` и reference `publicKey`.
+
+Важно:
+
+- `privateKey` удалённого сервера из клиентского JSON восстановить нельзя.
+- `UUID` и `shortId` для нашего сервера и клиентских артефактов генерируются локально как раньше.
+- `xrayCli` всегда генерирует свою пару `x25519` для нового сервера.
+- В ссылку `vless://` и в `/etc/xray-cli/client-reality.json` записывается уже новый локально сгенерированный `publicKey`.
+- Импортированный `publicKey` сохраняется только как reference-значение для сверки и диагностики.
 
 ## Управление после установки
 
