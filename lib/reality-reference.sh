@@ -133,6 +133,11 @@ finalize_reality_runtime() {
     REALITY_DEST_SOURCE="${REALITY_DEST_SOURCE:-derived}"
   fi
 
+  if [[ "${ENABLE_VLESS_WS:-0}" == "1" && -n "${DOMAIN:-}" && "${REALITY_ADDRESS_SOURCE:-}" != "cli" ]]; then
+    REALITY_ADDRESS="${DOMAIN}"
+    REALITY_ADDRESS_SOURCE="domain"
+  fi
+
   if [[ -z "${REALITY_ADDRESS:-}" && -n "${REALITY_REFERENCE_ADDRESS:-}" ]]; then
     REALITY_ADDRESS="${REALITY_REFERENCE_ADDRESS}"
     REALITY_ADDRESS_SOURCE="${REALITY_ADDRESS_SOURCE:-reference}"

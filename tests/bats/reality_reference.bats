@@ -80,3 +80,18 @@ setup() {
   [[ "${REALITY_FINGERPRINT}" == "chrome" ]]
   [[ "${REALITY_REFERENCE_PUBLIC_KEY}" == "reference-public-key" ]]
 }
+
+@test "finalize_reality_runtime prefers domain as reality address in combo mode" {
+  ENABLE_VLESS_WS=1
+  ENABLE_REALITY=1
+  DOMAIN="vpn.example.com"
+  REALITY_REFERENCE_ADDRESS="test.grey-lance.test-cdn-kkk.com"
+  REALITY_SNI="tradingview.com"
+  REALITY_DEST="tradingview.com:443"
+  REALITY_ADDRESS=""
+
+  finalize_reality_runtime
+
+  [[ "${REALITY_ADDRESS}" == "vpn.example.com" ]]
+  [[ "${REALITY_ADDRESS_SOURCE}" == "domain" ]]
+}

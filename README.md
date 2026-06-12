@@ -50,6 +50,8 @@ sudo ./install.sh --non-interactive --yes \
   --mode combo --domain vpn.example.com --email admin@vpn.example.com
 ```
 
+В `combo` по умолчанию `Reality`-ссылка тоже использует ваш `DOMAIN` как client `address`, а `serverName` остаётся отдельным значением маскировки.
+
 ### Dry-run
 
 ```bash

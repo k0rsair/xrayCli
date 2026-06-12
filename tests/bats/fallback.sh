@@ -16,6 +16,8 @@ export REALITY_REFERENCE_ADDRESS="test.grey-lance.test-cdn-kkk.com"
 # shellcheck disable=SC1091
 source "${ROOT}/lib/common.sh"
 # shellcheck disable=SC1091
+source "${ROOT}/lib/reality-reference.sh"
+# shellcheck disable=SC1091
 source "${ROOT}/lib/link-builder.sh"
 
 assert_contains() {
@@ -32,8 +34,9 @@ link="$(build_vless_reality_link "203.0.113.1")"
 assert_contains "${link}" "security=reality"
 assert_contains "${link}" "pbk=test-public-key"
 
+finalize_reality_runtime
 address="$(resolve_reality_server_address)"
-[[ "${address}" == "test.grey-lance.test-cdn-kkk.com" ]] || { echo "FAIL: reality address import"; exit 1; }
+[[ "${address}" == "vpn.example.com" ]] || { echo "FAIL: reality address should prefer domain in combo"; exit 1; }
 
 json="$(build_reality_client_json "test.grey-lance.test-cdn-kkk.com" "443")"
 assert_contains "${json}" "test.grey-lance.test-cdn-kkk.com"
