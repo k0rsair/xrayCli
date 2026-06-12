@@ -103,6 +103,22 @@ sudo nginx -t && sudo systemctl restart nginx
 
 Предупреждение не блокирует запуск, но лучше убрать дубликат.
 
+### xray занимает порт 443 (старая установка)
+
+Если xray был установлен раньше с `listen: 443`, nginx не сможет стартовать в режиме **vless-ws** или **combo**.
+
+```bash
+sudo systemctl stop xray
+sudo ss -tlnp | grep 443          # порт должен быть свободен
+sudo cp /usr/local/etc/xray/config.json /usr/local/etc/xray/config.json.bak
+sudo ./install.sh --reconfigure --non-interactive --yes \
+  --mode combo --domain letim-na-mars.ru --email admin@letim-na-mars.ru
+sudo systemctl start nginx
+sudo systemctl start xray
+```
+
+В combo xray слушает **127.0.0.1:10443** (Reality) и **127.0.0.1:10000** (WS), а **443** остаётся за nginx stream.
+
 ### `nginx.service is not active, cannot reload`
 
 Конфиг в порядке, но сервис не запущен:

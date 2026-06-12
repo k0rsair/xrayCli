@@ -27,9 +27,12 @@ setup_ssl() {
     return 0
   fi
 
-  log_info "Получение SSL-сертификата для ${DOMAIN}..."
+  run_cmd mkdir -p "${WEB_ROOT}/.well-known/acme-challenge"
+
+  log_info "Получение SSL-сертификата для ${DOMAIN} (webroot)..."
   certbot certonly \
-    --nginx \
+    --webroot \
+    -w "${WEB_ROOT}" \
     -d "${DOMAIN}" \
     --non-interactive \
     --agree-tos \

@@ -2,14 +2,59 @@
 # shellcheck shell=bash
 # Nginx site and stream configuration.
 
+prepare_nginx_start() {
+  log_debug "[nginx-vless.prepare_nginx_start] start"
+  if systemctl is-active --quiet xray 2>/dev/null; then
+    if ss -tlnp 2>/dev/null | grep -qE '(:443|:80)[[:space:]]' ; then
+      local xray_on_public
+      xray_on_public="$(ss -tlnp 2>/dev/null | grep xray | grep -E ':443|:80' || true)"
+      if [[ -n "${xray_on_public}" ]]; then
+        log_warn "Останавливаем xray — занят публичный порт (443/80)"
+        run_cmd systemctl stop xray
+      fi
+    fi
+  fi
+}
+
+diagnose_nginx_start_failure() {
+  log_error "nginx не удалось запустить"
+  echo "--- ss -tlnp (80/443) ---" >&2
+  ss -tlnp 2>/dev/null | grep -E ':80|:443' >&2 || true
+  echo "--- journalctl nginx ---" >&2
+  journalctl -u nginx -n 25 --no-pager >&2 || true
+}
+
 reload_or_start_nginx() {
   log_debug "[nginx-vless.reload_or_start_nginx] start"
+  prepare_nginx_start
   if systemctl is-active --quiet nginx 2>/dev/null; then
     run_cmd systemctl reload nginx || run_cmd systemctl restart nginx
   else
     log_warn "nginx не запущен — выполняем start"
-    run_cmd systemctl start nginx || run_cmd systemctl restart nginx
+    if ! run_cmd systemctl start nginx; then
+      run_cmd systemctl restart nginx || diagnose_nginx_start_failure
+      die "nginx не стартовал — см. диагностику выше"
+    fi
   fi
+}
+
+cleanup_duplicate_domain_configs() {
+  local domain="$1"
+  local our_conf="xray-cli-${domain}.conf"
+  log_debug "[nginx-vless.cleanup_duplicate_domain_configs] domain=${domain}"
+
+  shopt -s nullglob
+  local f base
+  for f in /etc/nginx/sites-enabled/*; do
+    base="$(basename "${f}")"
+    [[ "${base}" == "${our_conf}" ]] && continue
+    if grep -qE "server_name[[:space:]]+${domain}[;[:space:]]" "${f}" 2>/dev/null \
+       || grep -qi "managed by Certbot" "${f}" 2>/dev/null; then
+      log_warn "Отключаем дублирующий конфиг: ${f}"
+      run_cmd rm -f "${f}"
+    fi
+  done
+  shopt -u nullglob
 }
 
 disable_default_nginx_site() {
@@ -18,6 +63,51 @@ disable_default_nginx_site() {
     run_cmd rm -f /etc/nginx/sites-enabled/default
     log_info "Отключён sites-enabled/default (конфликт server_name на :80)"
   fi
+}
+
+setup_nginx_bootstrap_http() {
+  log_debug "[nginx-vless.setup_nginx_bootstrap_http] domain=${DOMAIN}"
+  if [[ "${ENABLE_VLESS_WS}" != "1" || "${DRY_RUN}" == "1" ]]; then
+    return 0
+  fi
+
+  local cert_path="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+  if [[ -f "${cert_path}" && "${RECONFIGURE}" != "1" ]]; then
+    log_debug "[nginx-vless.setup_nginx_bootstrap_http] cert exists — bootstrap не нужен"
+    return 0
+  fi
+
+  disable_default_nginx_site
+  setup_decoy_site
+  run_cmd mkdir -p "${WEB_ROOT}/.well-known/acme-challenge"
+
+  local site_conf="/etc/nginx/sites-available/xray-cli-${DOMAIN}.conf"
+  local enabled="/etc/nginx/sites-enabled/xray-cli-${DOMAIN}.conf"
+
+  cat > "${site_conf}" <<EOF
+# xray-cli bootstrap (HTTP only, for certbot webroot)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN};
+
+    root ${WEB_ROOT};
+    index index.html;
+
+    location /.well-known/acme-challenge/ {
+        root ${WEB_ROOT};
+    }
+
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+}
+EOF
+  run_cmd ln -sf "${site_conf}" "${enabled}"
+  run_cmd nginx -t
+  run_cmd systemctl enable nginx
+  reload_or_start_nginx
+  log_info "nginx bootstrap (HTTP :80) готов для certbot webroot"
 }
 
 setup_nginx() {
@@ -31,6 +121,7 @@ setup_nginx() {
   fi
 
   disable_default_nginx_site
+  cleanup_duplicate_domain_configs "${DOMAIN}"
   setup_decoy_site
   render_nginx_site
   if [[ "${ENABLE_REALITY}" == "1" ]]; then

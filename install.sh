@@ -77,6 +77,7 @@ main() {
   source_lib nginx-vless.sh
   source_lib link-builder.sh
   source_lib service.sh
+  source_lib preflight.sh
 
   run_prompts "${MODE}"
 
@@ -90,9 +91,15 @@ main() {
   generate_all_secrets
 
   log_info "Шаг 4/7: конфигурация xray"
+  ensure_xray_config_compatible
+  if [[ "${RECONFIGURE}" == "1" ]]; then
+    stop_xray_for_nginx
+  fi
   write_xray_config
 
   log_info "Шаг 5/7: SSL и nginx"
+  ensure_ports_for_nginx
+  setup_nginx_bootstrap_http
   setup_ssl
   setup_nginx
 

@@ -12,6 +12,12 @@ start_services() {
 
   if [[ "${ENABLE_VLESS_WS}" == "1" ]]; then
     run_cmd systemctl enable nginx
+    if systemctl is-active --quiet xray 2>/dev/null; then
+      if ss -tlnp 2>/dev/null | grep xray | grep -qE ':443[[:space:]]'; then
+        log_warn "xray держит :443 — останавливаем перед nginx"
+        run_cmd systemctl stop xray
+      fi
+    fi
     run_cmd systemctl restart nginx
     check_unit nginx
   fi

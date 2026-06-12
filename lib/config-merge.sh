@@ -20,6 +20,9 @@ build_base_config() {
 
 write_xray_config() {
   log_debug "[config-merge.write_xray_config] start"
+  if [[ -f "${XRAY_CONFIG_PATH}" ]]; then
+    backup_existing_xray_config
+  fi
   local inbounds=()
   local port_scheme=""
 
